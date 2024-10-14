@@ -1,0 +1,4 @@
+storage/documents
+**/__pycache__
+google-api-auth.json
+.env

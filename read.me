@@ -1,0 +1,186 @@
+virtualenv venv-docai
+
+powershell: .\venv-docai\Scripts\Activate
+cmd: venv-docai\Scripts\activate
+linux/macOs: source venv-docai/bin/activate
+
+pip freeze > requirements.txt
+
+W ramach sesji
+$API_LOCATION = "eu" 
+$PROJECT_ID = "608236450306" 
+
+W ramach zmiennych środowiskowych stałych
+[System.Environment]::SetEnvironmentVariable('API_LOCATION', 'eu', 'Machine')
+[System.Environment]::SetEnvironmentVariable('PROJECT_ID', '608236450306', 'Machine')
+
+# env configuration https://codelabs.developers.google.com/codelabs/cloud-documentai-manage-processors-python?hl=pl#2
+# processor types https://codelabs.developers.google.com/codelabs/cloud-documentai-manage-processors-python?hl=pl#3
+#TODO create processors https://codelabs.developers.google.com/codelabs/cloud-documentai-manage-processors-python?hl=pl#4
+# list my processors https://codelabs.developers.google.com/codelabs/cloud-documentai-manage-processors-python?hl=pl#5
+
+#TODO turn on and off processors
+#TODO manage processors versions
+#TODO remove processors
+
+
+#####################################
+
+1. Dokumenty pdf podpisane cyfrowo nie sa odczytywane przez google vision api
+
+2. Biblioteki:
+
+pip install google-cloud-vision
+pip install google-cloud-storage
+pip install google-cloud-documentai
+
+3. Koszty
+
+Dla 10 tys faktur miesiecznie i uruchomień 2 tys umów (polisa, dowód, umowa) + storage
+https://cloud.google.com/products/calculator?authuser=2&hl=pl&dl=CjhDaVExWVdFNE56Z3hPQzAyWmpFMUxUUTBZell0T0RVek5pMDNZVFpqWW1Vd09XUm1ZalVRQVE9PRAJGiQ2QkUyM0I0OC1FOTYyLTRBRjgtODA5Ny1EQzlDMjNBRUI0RDU
+
+4. Scenariusz
+- Pliki wysyłamy na google storage. / Bezpieka?
+- Klasyfikujemy dokumenty / ze wsparciem pracownika uruchomień
+- Oznaczamy pola na dokumentach / ze wsparciem pracownika uruchomień
+- Trenujemy modele / Mamy dedykowane modele per typ dokumentu
+- Development, obsługa logiki, cache, zapisywania danych, przesyłania do BPM
+- Wysoka jakość
+- Koszt ~1046 usd za 2.000 umów miesiecznie
+
+5. W cloud storage potrzebujemy miejsca na dokumenty
+/invoices
+/insurances
+/vehicle_registration
+/contract
+
+/all_documents
+
+--------
+
+1. Dokumenty z umowy podziel na strony (python manage pdf)
+
+2. Rozpoznaj jakim typem dokumentu jest każda strona (classify)
+Treningowe i testowane dokumnty w invoice_parser: 10/2
+
+3. Przekaż stronę do odpowiedniego "rozpoznawacza danych" i zwróć dane (custom-extractory dla każdego + invoice parser)
+Treningowe i testowane dokumnty w invoice_parser: 50/50
+Treningowe i testowane dokumnty w custom_extractor: 50/50
+
+4. Przekształć dane do formatu json
+
+-----------
+
+1. File manage logic: prześle właściwy MIME (jpg / pdf, co z jpeg?)
+2. Cache: Zwracane dane powinny ladować jako typ pickle i powinny być zapisywane w output jako obiekt dokumentai
+3. Cache logic: sprawdzamy czy już analizowaliśmy dokument, po to by znowu nim nie strzelać
+6. Napisać wysyłanie danych do storage
+5. Dzielenie dokumentu na wiele stron (folder preprocessing), aby do google strzelać tylko z tym co trzeba
+
+4. Ujednolicić proces, gdy strzelamy po samo invoice parse powinniśmy przechodzić z folderu input do folderu processed/invoice_parser
+5. Budowanie ścieżki powinno odbywć się na podstawie nazw funkcji z ifologii z maina
+
+4. Dopisać custom extract / layout parser / document ocr / form parser
+
+7. Jak zachowa się dokument gdy będziemy nim strzelać do góry nogami?
+
+8. Wytrenować custom classifier
+9. Poukładać projekt
+10. Wystawić API za pomoca, którego strzelamy z faktura do OCRowania
+11. Metoda, która będzie wywoływana schedulerem i będzie przechodziła przez wszystkie faktury
+
+
+1. Weź ze wskazanej lokalizacji wszystkie pliki załaczone przez handlowca
+2. Podziel na pojedyncze strony (sprawdź czy dokumenty bokiem, do góry nogami też sa analizowane)
+3. Wyślij dokumenty do klasyfikacji 
+--- Wyświetl userowi sklasyfikowane dokumenty. Następnie może coś skorygować. Oznaczamy dokument / Dotrenowujemy model ---
+4. Wysyłaj dokument do właściwego procesora ocr
+--- Wyświetl userowi wyłuskane dane. Następnie może coś skorygować. Oznaczamy dokument / Dotrenowujemy model ---
+5. Zwracane dane posadź w filenet / zwracaj po api
+
+Dane zwracane po API z google
+Debug: Loaded object content: ['__bool__', '__class__', '__contains__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattr__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__setstate__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', 'document', 'human_review_status']
+
+
+####
+
+Struktura ogólna obiektu Document
+uri (string): URI do przetworzonego dokumentu, jeśli został załadowany z zewnętrznego źródła (np. z Google Cloud Storage).
+content (bytes): Zawartość przetworzonego dokumentu w postaci binarnej (np. PDF lub obraz).
+mime_type (string): Typ MIME przetworzonego dokumentu (np. application/pdf, image/png).
+text (string): Cały tekst wyodrębniony z dokumentu.
+text_styles (array): Lista stylów tekstowych, które mogą być przypisane do różnych fragmentów tekstu (czcionka, rozmiar, kolor).
+pages (array): Lista przetworzonych stron dokumentu, gdzie każda strona ma swoje szczegółowe dane (np. tabele, pola formularzy, paragrafy).
+entities (array): Lista rozpoznanych jednostek (entities), takich jak kwoty, daty, organizacje, imiona i inne, w zależności od procesora.
+entity_relations (array): Relacje pomiędzy rozpoznanymi jednostkami (entities), takie jak powiązania między imionami i datami lub kwotami.
+translations (array): Tłumaczenia przetworzonych tekstów, jeśli dokument był tłumaczony.
+text_changes (array): Lista zmian w tekście, która może być zwrócona, jeśli dokument był korygowany lub edytowany.
+revisions (array): Lista rewizji dokumentu, zwracana dla wersji dokumentów, które były przetwarzane wiele razy.
+Struktura pages:
+Każda strona w dokumencie ma bardzo szczegółowe dane:
+
+page_number (int): Numer strony.
+dimension (object): Wymiary strony, zawierające wysokość i szerokość.
+blocks (array): Lista bloków tekstu (dłuższe fragmenty tekstu, jak np. akapity).
+paragraphs (array): Lista akapitów.
+lines (array): Lista pojedynczych linii tekstu.
+tokens (array): Lista tokenów (pojedynczych słów).
+visual_elements (array): Wizualne elementy dokumentu, np. obrazy, kształty.
+tables (array): Lista tabel znalezionych na stronie.
+form_fields (array): Lista pól formularzy (np. pola tekstowe, checkboxy).
+detected_languages (array): Lista wykrytych języków na stronie i ich proporcje.
+image_quality_scores (object): Wyniki oceny jakości obrazu, jeśli dotyczy.
+Struktura entities:
+Jednostki (entities) są rozpoznawane w dokumencie i mają następujące pola:
+
+type_ (string): Typ jednostki, np. "organization", "date", "person".
+mention_text (string): Tekst, który reprezentuje tę jednostkę (np. "Google LLC").
+mention_id (string): Opcjonalny unikalny identyfikator dla jednostki.
+confidence (float): Pewność modelu, z jaką jednostka została rozpoznana (np. 0.95 dla 95%).
+page_anchor (object): Informacja o tym, na której stronie jednostka została znaleziona, w tym jej współrzędne.
+properties (array): Lista dodatkowych właściwości jednostki, np. imię osoby, data urodzenia w przypadku rozpoznania osoby.
+provenance (object): Historia przetwarzania jednostki (np. pochodzenie z innego przetworzenia dokumentu).
+Struktura text_anchor:
+Fragmenty tekstu, które są związane z jednostkami (entities), mają strukturę text_anchor, która określa, gdzie dany fragment tekstu znajduje się w dokumencie:
+
+text_segments (array): Lista segmentów tekstu, gdzie dany fragment został rozpoznany. Każdy segment ma:
+start_index (int): Początkowy indeks w pełnym tekście dokumentu.
+end_index (int): Końcowy indeks w pełnym tekście dokumentu.
+Struktura tables:
+Jeśli dokument zawiera tabele, są one reprezentowane przez następujące pola:
+
+header_rows (array): Wiersze nagłówków tabeli.
+body_rows (array): Wiersze danych tabeli.
+detected_languages (array): Wykryte języki w tabeli.
+Struktura form_fields:
+Pola formularzy zawierają informacje o rozpoznanych polach, takich jak nazwy i wartości pól (np. w fakturach):
+
+field_name (text_anchor): Nazwa pola formularza (np. "Nazwa firmy").
+field_value (text_anchor): Wartość przypisana do tego pola (np. "Google LLC").
+value_type (string): Typ wartości, np. "text" lub "date".
+name_confidence (float): Pewność w rozpoznaniu nazwy pola.
+value_confidence (float): Pewność w rozpoznaniu wartości pola.
+
+Różnice między procesorami
+Różne procesory zwracają różne dane, w zależności od ich specjalizacji:
+
+General Document Processor:
+
+Zwraca ogólne dane o tekście, tabele, paragrafy, pola formularzy, wykryte jednostki (entities).
+Pola: text, pages, entities, tables, form_fields.
+Form Parser:
+
+Zwraca szczegółowe dane o polach formularzy, takie jak nazwy pól i wartości (np. wniosków o pracę, ankiet).
+Pola: form_fields, entities.
+Invoice Parser:
+
+Specjalizuje się w przetwarzaniu faktur, rozpoznaje kwoty, daty, numery faktur, podatki, dostawców i odbiorców.
+Pola: entities (np. amount, invoice_date, supplier, customer), form_fields.
+Layout Parser:
+
+Zwraca szczegółowe dane o układzie dokumentu, takie jak bloki tekstu, tabele, paragrafy.
+Pola: blocks, paragraphs, lines, tokens, tables.
+Przykłady różnic
+Invoice Parser może zwracać specjalistyczne entities, takie jak invoice_number, invoice_date, total_amount, które są specyficzne dla faktur.
+Form Parser skoncentruje się głównie na polach formularzy i ich wartościach (form_fields).
+Layout Parser bardziej skupi się na położeniu elementów na stronie (bounding_poly, blocks, lines).
