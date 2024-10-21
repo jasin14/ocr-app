@@ -1,6 +1,6 @@
 import pandas as pd
 from config.document_processor import process_document_via_ai
-from utils.file_utils import get_mime_type, is_supported_file_type
+from utils.file_utils import trim_text, get_validated_mime_type
 
 def process_and_classify_documents(file_path: str, mime_type: str, processor_id: str):
     """
@@ -8,15 +8,8 @@ def process_and_classify_documents(file_path: str, mime_type: str, processor_id:
     """
     
     try:
-        # Określ MIME type automatycznie, jeśli nie został podany
-        print(f"mime_type try {mime_type}")
-        if mime_type is None:
-            mime_type = get_mime_type(file_path)
-            print(f"Autodetected MIME type: {mime_type}")
-
-        # Sprawdź, czy plik jest obsługiwany
-        if not is_supported_file_type(file_path):
-            raise ValueError(f"Unsupported file type for analysis: {file_path}")
+        
+        mime_type = get_validated_mime_type(file_path, mime_type)
         
         # Przetwarzanie dokumentu
         document = process_document_via_ai(
@@ -26,9 +19,6 @@ def process_and_classify_documents(file_path: str, mime_type: str, processor_id:
         )
 
         print("Document processing complete.")
-        print("-------------------------------")
-        print(f"{file_path}")
-        print("-------------------------------")
 
         types = []
         confidence = []

@@ -7,9 +7,9 @@ load_dotenv()
 
 # Pobieranie zmiennych z .env
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
-GCS_DESTINATION_FOLDER = os.getenv("GCS_DESTINATION_FOLDER")
+GCS_DEFALUT_DESTINATION_FOLDER = os.getenv("GCS_DEFALUT_DESTINATION_FOLDER")
 
-def upload_to_cloud_storage(source_file_path):
+def upload_to_cloud_storage(source_file_path, folder_storage):
     """
     Przesyła plik do Cloud Storage na podstawie zmiennych środowiskowych.
     Nazwa pliku w Cloud Storage będzie generowana na podstawie nazwy pliku źródłowego.
@@ -20,10 +20,15 @@ def upload_to_cloud_storage(source_file_path):
         
         # Pobierz bucket
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
+
+        if folder_storage:
+            destination_folder = folder_storage
+        else:
+            destination_folder = GCS_DEFALUT_DESTINATION_FOLDER
         
         # Nazwa pliku w Cloud Storage (dodajemy folder destynacji oraz nazwę pliku)
         file_name = os.path.basename(source_file_path)  # Wyciągnięcie nazwy pliku
-        destination_blob_name = f"{GCS_DESTINATION_FOLDER}/{file_name}"
+        destination_blob_name = f"{destination_folder}/{file_name}"
         
         # Zdefiniowanie blobu
         blob = bucket.blob(destination_blob_name)

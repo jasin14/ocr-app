@@ -8,6 +8,9 @@ load_dotenv()
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
+os.environ["HTTP_PROXY"] = os.getenv("PROXY", "")
+os.environ["HTTPS_PROXY"] = os.getenv("PROXY", "")
+
 PROJECT_ID = os.getenv("PROJECT_ID", "")
 API_LOCATION = os.getenv("API_LOCATION", "")
 

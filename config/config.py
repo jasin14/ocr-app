@@ -9,11 +9,13 @@ PROJECT_ID = os.getenv("PROJECT_ID", "")
 API_LOCATION = os.getenv("API_LOCATION", "")
 
 CACHE_DIR  = os.getenv("CACHE_DIR", "")
+OUTPUT_JSON_DIR  = os.getenv("OUTPUT_JSON_DIR", "")
 
 INVOICE_PROCESSOR_ID = os.getenv("INVOICE_PROCESSOR_ID", "")
 CLASSIFICATION_PROCESSOR_ID = os.getenv("CLASSIFICATION_PROCESSOR_ID", "")
 FORM_PROCESSOR_ID  = os.getenv("FORM_PROCESSOR_ID", "")
 LAYOUT_PROCESSOR_ID  = os.getenv("LAYOUT_PROCESSOR_ID", "")
+DOCUMENT_OCR_PROCESSOR_ID  = os.getenv("DOCUMENT_OCR_PROCESSOR_ID", "")
 
 INPUT_FOLDER = os.getenv("INPUT_FOLDER", "storage/documents/input")
 SPLITED_FOLDER = os.getenv("SPLITED_FOLDER", "storage/documents/splited")

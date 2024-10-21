@@ -7,21 +7,21 @@ from config.config import CACHE_DIR
 # Tworzenie folderu cache, jeśli nie istnieje
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-def _generate_cache_key(folder_name, file_name):
+def _generate_cache_key(file_path, processor_id):
     """
     Generuje klucz cache na podstawie folderu i nazwy pliku.
     """
-    key = f"{folder_name}_{file_name}"
+    key = f"{file_path}_{processor_id}"
     cache_key = hashlib.md5(key.encode('utf-8')).hexdigest()
     print(f"Generated cache_key: {cache_key}")
 
     return cache_key
 
-def save_result_to_cache(result, folder_name, file_name):
+def save_result_to_cache(result, file_path, processor_id):
     """
     Zapisuje wynik przetwarzania do pliku pickle w cache.
     """
-    cache_key = _generate_cache_key(folder_name, file_name)
+    cache_key = _generate_cache_key(file_path, processor_id)
     cache_path = os.path.join(CACHE_DIR, f"{cache_key}.pkl")
 
     with open(cache_path, 'wb') as cache_file:
@@ -29,11 +29,11 @@ def save_result_to_cache(result, folder_name, file_name):
     
     print(f"Saved result as cache_key {cache_key} to cache_path: {cache_path}")
 
-def load_result_from_cache(folder_name, file_name):
+def load_result_from_cache(file_path, processor_id):
     """
     Ładuje wynik przetwarzania z pliku pickle w cache, jeśli istnieje.
     """
-    cache_key = _generate_cache_key(folder_name, file_name)
+    cache_key = _generate_cache_key(file_path, processor_id)
     cache_path = os.path.join(CACHE_DIR, f"{cache_key}.pkl")
 
     if os.path.exists(cache_path):

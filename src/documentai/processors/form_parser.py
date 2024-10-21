@@ -1,93 +1,88 @@
-from google.cloud import documentai_v1 as documentai
+import os
 import pandas as pd
-from config.document_processor import process_form_via_ai
-from utils.file_utils import get_mime_type, is_supported_file_type, trim_text
-from utils.data_extraction import get_table_data
-from os.path import splitext
-
+from config.document_processor import process_document_via_ai
+from utils.file_utils import get_validated_mime_type, save_document_to_json
 
 def process_and_parse_form(file_path: str, mime_type: str, processor_id: str):
     """
-    Procesuje formularz, wyciąga kluczowe informacje oraz dane tabelaryczne, drukując je w tabeli.
+    Processes the form, extracts key information and table data, and saves the structured data to a JSON file.
     """
-
     try:
-        # Określ MIME type automatycznie, jeśli nie został podany
-        if mime_type is None:
-            mime_type = get_mime_type(file_path)
-            print(f"Autodetected MIME type: {mime_type}")
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
 
-        # Sprawdź, czy plik jest obsługiwany
-        if not is_supported_file_type(file_path):
-            raise ValueError(f"Unsupported file type for analysis: {file_path}")
+        mime_type = get_validated_mime_type(file_path, mime_type)
 
-        # Przetwarzanie formularza
-        document = process_form_via_ai(
+        document = process_document_via_ai(
             processor_id=processor_id,
             file_path=file_path,
             mime_type=mime_type,
         )
 
-        names = []
-        name_confidence = []
-        values = []
-        value_confidence = []
+        print("Form processing complete.")
 
-        # Przetwarzanie formularza i wyciąganie pól
+        # Zapisanie przetworzonego dokumentu do pliku JSON
+        save_document_to_json(document, "source", "form_parser", file_name)
+
+        # Klucz-Wartość (Form fields) oraz Tabele w JSON
+        json_data = {
+            "entities": [],
+            "tables": []
+        }
+
+        # Wyodrębnianie par klucz-wartość z formularzy
         for page in document.pages:
             for field in page.form_fields:
-                # Wyciągnięcie nazw pól formularza
-                names.append(trim_text(field.field_name.text_anchor.content))
-                # Zaufanie do nazwy pola
-                name_confidence.append(field.field_name.confidence)
+                entity_dict = {
+                    "field_name": extract_text_from_text_anchor(field.field_name.text_anchor, document.text),
+                    "field_name_confidence": field.field_name.confidence,
+                    "field_value": extract_text_from_text_anchor(field.field_value.text_anchor, document.text),
+                    "field_value_confidence": field.field_value.confidence
+                }
+                json_data["entities"].append(entity_dict)
 
-                # Wyciągnięcie wartości pól formularza
-                values.append(trim_text(field.field_value.text_anchor.content))
-                # Zaufanie do wartości pola
-                value_confidence.append(field.field_value.confidence)
+        # Wyodrębnianie tabel z formularzy
+        for page in document.pages:
+            for table in page.tables:
+                table_data = {
+                    "header_rows": [],
+                    "table_rows": []
+                }
 
-        # Tworzenie Pandas DataFrame do wydrukowania wartości w formacie tabelarycznym
-        df = pd.DataFrame({
-            "Field Name": names,
-            "Field Name Confidence": name_confidence,
-            "Field Value": values,
-            "Field Value Confidence": value_confidence,
-        })
+                # Pobierz wiersze nagłówków
+                for header_row in table.header_rows:
+                    header_row_data = []
+                    for header_cell in header_row.cells:
+                        header_row_data.append({
+                            "text": extract_text_from_text_anchor(header_cell.layout.text_anchor, document.text),
+                            "confidence": header_cell.layout.confidence
+                        })
+                    table_data["header_rows"].append(header_row_data)
 
-        print(df)
+                # Pobierz wiersze z danymi
+                for body_row in table.body_rows:
+                    row_data = []
+                    for cell in body_row.cells:
+                        row_data.append({
+                            "text": extract_text_from_text_anchor(cell.layout.text_anchor, document.text),
+                            "confidence": cell.layout.confidence
+                        })
+                    table_data["table_rows"].append(row_data)
 
-        # Przetwarzanie tabel
-        process_and_parse_tables(document, file_path)
+                json_data["tables"].append(table_data)
+
+
+        save_document_to_json(json_data, "parsed", "form_parser", file_name)
 
     except Exception as e:
-        print(f"Error while processing and classifying document: {e}")
+        print(f"Error while processing and parsing form: {e}")
 
-
-def process_and_parse_tables(document: documentai.Document, file_path: str):
+def extract_text_from_text_anchor(text_anchor, full_text):
     """
-    Parsuje i wyciąga dane tabelaryczne z dokumentu.
+    Wyodrębnia tekst z obiektu TextAnchor, używając pełnego tekstu dokumentu.
     """
-    header_row_values = []
-    body_row_values = []
-
-    # Input Filename without extension
-    output_file_prefix = splitext(file_path)[0]
-
-    for page in document.pages:
-        for index, table in enumerate(page.tables):
-            header_row_values = get_table_data(table.header_rows, document.text)
-            body_row_values = get_table_data(table.body_rows, document.text)
-
-            # Tworzenie Pandas Dataframe do wyświetlania danych w tabeli.
-            df = pd.DataFrame(
-                data=body_row_values,
-                columns=pd.MultiIndex.from_arrays(header_row_values),
-            )
-
-            print(f"Page {page.page_number} - Table {index}")
-            print(df)
-
-            # Zapisz każdą tabelę jako plik CSV
-            output_filename = f"{output_file_prefix}_pg{page.page_number}_tb{index}.csv"
-            df.to_csv(output_filename, index=False)
-            print(f"Table saved to {output_filename}")
+    extracted_text = ""
+    for segment in text_anchor.text_segments:
+        start_index = segment.start_index
+        end_index = segment.end_index
+        extracted_text += full_text[start_index:end_index]
+    return extracted_text.strip()
