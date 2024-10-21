@@ -7,7 +7,8 @@ from config.config import (
     CLASSIFICATION_PROCESSOR_ID, 
     LAYOUT_PROCESSOR_ID, 
     FORM_PROCESSOR_ID,
-    DOCUMENT_OCR_PROCESSOR_ID
+    DOCUMENT_OCR_PROCESSOR_ID,
+    VEHICLE_REGISTRATION_PROCESSOR_ID
 )
 from config.processor_types import fetch_processor_types, print_processor_types
 from config.list_processors import list_processors, print_processors, get_processor
@@ -15,6 +16,7 @@ from src.documentai.processors.classification import process_and_classify_docume
 from src.documentai.processors.invoice_parser import process_and_parse_invoice
 from src.documentai.processors.form_parser import process_and_parse_form
 from src.documentai.processors.layout_parser import process_and_parse_layout
+from src.documentai.processors.custom_extractor import process_and_parse_custom_extractor
 from src.cloud_storage.cloud_storage import upload_to_cloud_storage
 from src.documentai.managers.folder_processor import process_pdf_folder
 from src.documentai.processors.document_ocr import process_and_perform_ocr
@@ -26,7 +28,7 @@ def main():
         "get_client", "get_project_info",
         "fetch_processor_types", "print_processor_types",
         "list_processors", "print_processors", "get_processor_by_name",
-        "classify_document", "parse_invoice", "parse_form", "parse_layout", 
+        "classify_document", "parse_invoice", "parse_form", "parse_layout", "parse_vehicle_registration",
         "upload_to_cloud_storage", "process_folder", "perform_ocr", "process_vision_pdf"
     ], help="Wybierz funkcję do wywołania")
 
@@ -103,6 +105,16 @@ def main():
                 mime_type=args.mime_type,
                 processor_id=processor
             )
+    elif args.function == "parse_vehicle_registration":
+        if not args.file_path:
+            print("Error: --file_path is required for parse_vehicle_registration")
+        else:
+            processor = args.processor_id if args.processor_id else VEHICLE_REGISTRATION_PROCESSOR_ID
+            process_and_parse_custom_extractor(
+                file_path=args.file_path,
+                mime_type=args.mime_type,
+                processor_id=processor
+            )            
     elif args.function == "parse_layout":
         if not args.file_path:
             print("Error: --file_path is required for parse_layout")
